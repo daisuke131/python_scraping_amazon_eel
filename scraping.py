@@ -1,13 +1,15 @@
-import math
+# import math
+from concurrent.futures import ThreadPoolExecutor
+from time import sleep
 
+import eel
 import pandas as pd
-from bs4 import BeautifulSoup
 
-# from common.csv import write_csv
+from common.csv import write_csv
 from common.driver import driver_setting
 from common.log import log_setting
 
-# from concurrent.futures import ThreadPoolExecutor
+# from bs4 import BeautifulSoup
 
 
 THREAD_COUNT = None  # スレッド数Noneで自動
@@ -21,12 +23,13 @@ class Scraping:
     def __init__(self, search_word) -> None:
         self.search_words: str
         self.query_word: str
-        self.page_count: int
+        self.page_count = 0
         self.df = pd.DataFrame()
         self.df_list = []
         self.search_word_formating(search_word)
+        self.all_data_count = 0
 
-    def search_word_formating(self, search_word):
+    def search_word_formating(self, search_word: str) -> None:
         # クエリパラメータの形に整形
         self.search_words = search_word.split()
         query_words = []
@@ -35,80 +38,76 @@ class Scraping:
         self.query_word = "+".join(query_words)
         log.info(f"検索ワード：{self.search_words}")
 
-    def fetch_page_count(self):
+    def fetch_page_count(self) -> None:
         query_url = SEARCH_QUERY_URL.format(query_word=self.query_word)
         driver = driver_setting(headless_flg=True)
         driver.get(query_url)
-        soup = BeautifulSoup(driver.page_source, features="html.parser")
-        s = soup.select_one("#search > script:nth-child(8)").next.split('"')
-        s_index = s.index("totalResultCount")
-        data_count = int(s[s_index + 1].replace(":", "").replace(",", ""))
-        self.page_count = math.ceil(data_count / 48)
-        if self.page_count > 10:
-            self.page_count = 10
-        driver.quit()
-
-    # def scraping(self):
-    #     with ThreadPoolExecutor(max_workers=THREAD_COUNT) as executor:
-    #         for page_counter in range(self.page_count):
-    #             executor.submit(self.fetch_scraping_data, page_counter + 1)
-    #     for df_data in self.df_list:
-    #         self.df = self.df.append(df_data, ignore_index=True)
-    #     self.df = self.df.sort_values(["page", "index"])
-
-    def fetch_scraping_data(self, page_counter):
-        query_url = PAGE_QUERY_URL.format(
-            query_word=self.query_word, page_counter=page_counter
-        )
-        driver = driver_setting(headless_flg=True)
-        driver.get(query_url)
-        try:
-            # ポップアップを閉じる
-            driver.execute_script('document.querySelector(".karte-close").click()')
-            driver.execute_script('document.querySelector(".karte-close").click()')
-        except Exception:
-            pass
-        data_counter = 0
-        corps_list = driver.find_elements_by_class_name("cassetteRecruit__content")
-        for corp in corps_list:
-            data_counter += 1
-            self.df_list.append(
-                {
-                    "page": page_counter,
-                    "index": data_counter,
-                    "会社名": self.fetch_corp_name(corp, "div > section > h3"),
-                    "勤務地": self.find_table_target_word(corp, "勤務地"),
-                    "給与": self.find_table_target_word(corp, "給与"),
-                }
+        a_disabled_elements = driver.find_elements_by_css_selector(".a-disabled")
+        if len(a_disabled_elements) == 3:
+            self.page_count = int(a_disabled_elements[-1].text)
+        else:
+            self.page_count = int(
+                driver.find_elements_by_css_selector(".a-normal")[-1].text
             )
         driver.quit()
 
-    def fetch_corp_name(self, driver, css_selector):
-        try:
-            return driver.find_element_by_css_selector(css_selector).text
-        except Exception:
-            pass
+    def scraping(self) -> None:
+        with ThreadPoolExecutor(max_workers=THREAD_COUNT) as executor:
+            for i in range(self.page_count):
+                executor.submit(self.fetch_scraping_data, page_count=i + 1)
+        for df_data in self.df_list:
+            self.df = self.df.append(df_data, ignore_index=True)
+        self.df = self.df.sort_values(["page", "index"])
+        for asin in self.df["ASIN"]:
+            eel.output_oder_list(f"ASIN: {asin}")
+        eel.output_oder_list(f"{self.all_data_count}件抽出しました。")
 
-    def find_table_target_word(self, driver, target):
-        table_headers = driver.find_elements_by_class_name("tableCondition__head")
-        table_bodies = driver.find_elements_by_class_name("tableCondition__body")
-        for table_header, table_body in zip(table_headers, table_bodies):
-            if table_header.text == target:
-                return table_body.text
+    def fetch_scraping_data(self, page_count: int) -> None:
+        query_url = PAGE_QUERY_URL.format(
+            query_word=self.query_word, page_count=page_count
+        )
+        driver = driver_setting(headless_flg=True)
+        driver.get(query_url)
+        data_counter = 0
+        elements = driver.find_elements_by_css_selector(".s-result-item.s-asin")
+        for element in elements:
+            self.all_data_count += 1
+            data_counter += 1
+            element.get_attribute("data-asin")
+            try:
+                product_name = element.find_element_by_css_selector("span").text
+            except Exception:
+                product_name = "失敗"
 
-    # def write_csv(self):
-    #     if len(self.df) > 0:
-    #         write_csv("_".join(self.search_words), self.df)
-    #         log.info(f"{len(self.df)}件出力しました。")
-    #     else:
-    #         log.info("データが0件です。")
+            try:
+                asin = element.get_attribute("data-asin")
+            except Exception:
+                asin = "失敗"
+
+            self.df_list.append(
+                {
+                    "page": page_count,
+                    "index": data_counter,
+                    "product_name": product_name,
+                    "ASIN": asin,
+                }
+            )
+            sleep(0.1)
+        driver.quit()
+
+    def write_csv(self):
+        if len(self.df) > 0:
+            write_csv("_".join(self.search_words), self.df)
+            log.info(f"{len(self.df)}件出力しました。")
+        else:
+            log.info("データが0件です。")
 
 
 def scraping(search_word: str):
     my_scraping = Scraping(search_word)
     my_scraping.fetch_page_count()
-    # my_scraping.scraping()
-    # my_scraping.write_csv()
+    my_scraping.scraping()
+    my_scraping.write_csv()
 
 
 # if __name__ == "__main__":
