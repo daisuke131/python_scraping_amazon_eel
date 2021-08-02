@@ -1,15 +1,16 @@
 import logging
 import logging.handlers
-from datetime import datetime
+
+# from datetime import datetime
 from pathlib import Path
 
-# from common_setting import hyphen_now
+from common.common import hyphen_now
 
 
 def log_setting():
     dir = Path("./log")
     dir.mkdir(parents=True, exist_ok=True)
-    now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    now = hyphen_now()
     log = logging.getLogger(__name__)
     # ログ出力レベルの設定
     log.setLevel(logging.INFO)
