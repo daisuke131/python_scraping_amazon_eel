@@ -1,10 +1,10 @@
 import eel
 
 from common.desktop import start
-from scraping import scraping
+from search_fetch_asin import scraping
 
 app_name = "web"
-end_point = "index.html"
+end_point = "search_fetch_asin.html"
 size = (600, 700)
 
 
