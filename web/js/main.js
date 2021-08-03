@@ -5,11 +5,15 @@ const fetch_data = async () => {
         return;
     }
     else {
-        $("#input-group-button-right").hide();
-        $("#loading_button").show();
+        document.getElementById('input-group-button-right').hidden = true;
+        document.getElementById('loading_button').hidden = false;
         await eel.fetch_data(search_word = search_word);
-        $("#input-group-button-right").show();
-        $("#loading_button").hide();
+        // if (result) {
+        //     document.getElementById('input-group-button-right').hidden = false;
+        //     document.getElementById('loading_button').hidden = true;
+        // }
+        // document.getElementById('input-group-button-right').hidden = false;
+        // document.getElementById('loading_button').hidden = true;
     }
 }
 
