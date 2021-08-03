@@ -5,7 +5,11 @@ const fetch_data = async () => {
         return;
     }
     else {
-        await eel.fetch_data(search_word=search_word);
+        $("#input-group-button-right").hide();
+        $("#loading_button").show();
+        await eel.fetch_data(search_word = search_word);
+        $("#input-group-button-right").show();
+        $("#loading_button").hide();
     }
 }
 
