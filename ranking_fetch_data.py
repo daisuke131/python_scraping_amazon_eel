@@ -91,71 +91,117 @@ class Scraping:
         eel.output_oder_list("抽出完了")
 
     def fetch_scraping_data(self, ranking: int, item_url: str, is_prime: bool) -> None:
-        if ranking == 9:
-            True
         driver = driver_setting(headless_flg=True)
         driver.get(item_url)
 
+        prime = ""
+        if is_prime:
+            prime = "prime対象"
+
+        try:
+            self.df_list.append(
+                {
+                    "ランキング": ranking,
+                    "商品名": self.fetch_product_name(driver),
+                    "価格": self.fetch_prise(driver),
+                    "発送リードタイム": self.fetch_read_time(driver),
+                    "Prime": prime,
+                    "ASIN": self.fetch_asin(driver),
+                    "URL": item_url,
+                }
+            )
+        except Exception:
+            self.df_list.append(
+                {
+                    "ランキング": ranking,
+                    "商品名": "",
+                    "価格": "",
+                    "発送リードタイム": "",
+                    "Prime": prime,
+                    "ASIN": "",
+                    "URL": item_url,
+                }
+            )
+        sleep(0.1)
+        driver.quit()
+
+    def fetch_product_name(self, driver) -> str:
+        try:
+            product_name = driver.find_element_by_css_selector("#productTitle").text
+        except Exception:
+            product_name = "失敗"
+        return product_name
+
+    def fetch_prise(self, driver) -> str:
+        price = "-"
+        try:
+            if driver.find_elements_by_id("priceblock_ourprice"):
+                price = driver.find_element_by_id("priceblock_ourprice").text
+            elif driver.find_elements_by_id("priceblock_dealprice"):
+                price = driver.find_element_by_id("priceblock_dealprice").text
+            elif driver.find_elements_by_id("priceblock_saleprice"):
+                price = driver.find_element_by_id("priceblock_saleprice").text
+            elif driver.find_elements_by_css_selector(
+                "#availability > span.a-size-medium.a-color-price"
+            ):
+                price = driver.find_element_by_css_selector(
+                    "#availability > span.a-size-medium.a-color-price"
+                ).text
+            elif driver.find_elements_by_css_selector(".a-size-base.a-color-price"):
+                price = driver.find_element_by_css_selector(
+                    ".a-size-base.a-color-price"
+                ).text
+            else:
+                price = "失敗"
+        except Exception:
+            price = "失敗"
+        return price
+
+    def fetch_read_time(self, driver) -> str:
+        read_time = "-"
+        try:
+            if driver.find_elements_by_id("mir-layout-DELIVERY_BLOCK-slot-UPSELL"):
+                if driver.find_element_by_id(
+                    "mir-layout-DELIVERY_BLOCK-slot-UPSELL"
+                ).text:
+                    read_time = driver.find_element_by_id(
+                        "mir-layout-DELIVERY_BLOCK-slot-UPSELL"
+                    ).text
+            if driver.find_elements_by_id(
+                "mir-layout-DELIVERY_BLOCK-slot-DELIVERY_MESSAGE"
+            ):
+                if driver.find_element_by_id(
+                    "mir-layout-DELIVERY_BLOCK-slot-DELIVERY_MESSAGE"
+                ).text:
+                    read_time = driver.find_element_by_id(
+                        "mir-layout-DELIVERY_BLOCK-slot-DELIVERY_MESSAGE"
+                    ).text
+            if driver.find_elements_by_id("dynamicDeliveryMessage"):
+                if driver.find_element_by_id("dynamicDeliveryMessage").text:
+                    read_time = driver.find_element_by_id("dynamicDeliveryMessage").text
+            if driver.find_elements_by_css_selector(
+                "#outOfStock > div > div.a-section.a-spacing-small"
+                + ".a-text-center > span.a-color-price.a-text-bold"
+            ):
+                if driver.find_element_by_css_selector(
+                    "#outOfStock > div > div.a-section.a-spacing-small"
+                    + ".a-text-center > span.a-color-price.a-text-bold"
+                ).text:
+                    read_time = driver.find_element_by_css_selector(
+                        "#outOfStock > div > div.a-section.a-spacing-small"
+                        + ".a-text-center > span.a-color-price.a-text-bold"
+                    ).text
+        except Exception:
+            read_time = "失敗"
+        return read_time
+
+    def fetch_asin(self, driver) -> str:
         try:
             asin_element = driver.find_element_by_id("ASIN")
             asin = asin_element.get_attribute("value")
         except Exception:
-            asin = ""
-
-        # if driver.find_elements_by_id("mir-layout-DELIVERY_BLOCK-slot-UPSELL"):
-        #     read_time = driver.find_element_by_id(
-        #         "mir-layout-DELIVERY_BLOCK-slot-UPSELL"
-        #     ).text
-        if driver.find_elements_by_id(
-            "mir-layout-DELIVERY_BLOCK-slot-DELIVERY_MESSAGE"
-        ):
-            read_time = driver.find_element_by_id(
-                "mir-layout-DELIVERY_BLOCK-slot-DELIVERY_MESSAGE"
-            ).text
-        elif driver.find_elements_by_id("dynamicDeliveryMessage"):
-            read_time = driver.find_element_by_id("dynamicDeliveryMessage").text
-        elif driver.find_elements_by_css_selector(
-            "#outOfStock > div > div.a-section.a-spacing-small"
-            + ".a-text-center > span.a-color-price.a-text-bold"
-        ):
-            read_time = driver.find_element_by_css_selector(
-                "#outOfStock > div > div.a-section.a-spacing-small"
-                + ".a-text-center > span.a-color-price.a-text-bold"
-            ).text
-        else:
-            read_time = ""
-
-        if driver.find_elements_by_id("priceblock_ourprice"):
-            price = driver.find_element_by_id("priceblock_ourprice").text
-        elif driver.find_elements_by_id("priceblock_dealprice"):
-            price = driver.find_element_by_id("priceblock_dealprice").text
-        elif driver.find_elements_by_id("priceblock_saleprice"):
-            price = driver.find_element_by_id("priceblock_saleprice").text
-        elif driver.find_elements_by_css_selector(
-            "#availability > span.a-size-medium.a-color-price"
-        ):
-            driver.find_element_by_css_selector(
-                "#availability > span.a-size-medium.a-color-price"
-            ).text
-        else:
-            price = ""
-
-        if is_prime:
-            prime = "prime対象"
-
-        self.df_list.append(
-            {
-                "ランキング": ranking,
-                "商品名": driver.find_element_by_css_selector("#productTitle").text,
-                "価格": price,
-                "発送リードタイム": read_time,
-                "Prime": prime,
-                "ASIN": asin,
-                "URL": item_url,
-            }
-        )
-        sleep(0.1)
-        driver.quit()
+            asin = "失敗"
+        return asin
 
     def write_csv(self):
         if len(self.df) > 0:
