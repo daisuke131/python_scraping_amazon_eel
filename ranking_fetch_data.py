@@ -31,6 +31,7 @@ class Scraping:
         self.fetch_urls(ranking_pg2_url)
 
     def fetch_urls(self, ranking_url: str) -> None:
+        # ログインしてprime情報と各URL取得
         driver = driver_setting(headless_flg=True)
         driver.get(ranking_url)
         login_url = driver.find_element_by_id("nav-link-accountList").get_attribute(
@@ -38,15 +39,8 @@ class Scraping:
         )
         driver.get(login_url)
         sleep(1)
-        load_dotenv()
-        login_id = os.getenv("LOGIN_ID")
-        password = os.getenv("PASSWORD")
-        driver.find_element_by_id("ap_email").send_keys(login_id)
-        driver.find_element_by_id("continue").click()
-        sleep(1)
-        driver.find_element_by_id("ap_password").send_keys(password)
-        driver.find_element_by_id("signInSubmit").click()
-        sleep(1)
+
+        self.login(driver)
 
         self.category_name = driver.find_element_by_css_selector(
             "#zg-right-col > h1 > span"
@@ -71,6 +65,21 @@ class Scraping:
         sleep(1)
         driver.quit()
 
+    def login(self, driver):
+        try:
+            load_dotenv()
+            login_id = os.getenv("LOGIN_ID")
+            password = os.getenv("PASSWORD")
+            driver.find_element_by_id("ap_email").send_keys(login_id)
+            driver.find_element_by_id("continue").click()
+            sleep(1)
+            driver.find_element_by_id("ap_password").send_keys(password)
+            driver.find_element_by_id("signInSubmit").click()
+            sleep(1)
+        except Exception:
+            eel.alert_js("ログイン失敗")
+            return
+
     def fetch_ranking_pg2_url(self, ranking_url: str) -> str:
         split_list = ranking_url.split("/")
         split_list[-1] = PG2_QUERY
@@ -88,16 +97,13 @@ class Scraping:
         for df_data in self.df_list:
             self.df = self.df.append(df_data, ignore_index=True)
         self.df = self.df.sort_values(["ランキング"])
-        eel.output_oder_list("抽出完了")
 
     def fetch_scraping_data(self, ranking: int, item_url: str, is_prime: bool) -> None:
         driver = driver_setting(headless_flg=True)
         driver.get(item_url)
-
         prime = ""
         if is_prime:
             prime = "prime対象"
-
         try:
             self.df_list.append(
                 {
@@ -213,10 +219,7 @@ class Scraping:
 
 def scraping(ranking_url: str):
     my_scraping = Scraping(ranking_url)
-    # my_scraping.fetch_page_count()
     my_scraping.scraping()
     my_scraping.write_csv()
-
-
-# if __name__ == "__main__":
-#     main()
+    eel.output_oder_list("抽出完了")
+    eel.enable_btn()

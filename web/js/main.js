@@ -1,20 +1,24 @@
-const fetch_data = async () => {
-    let search_word = $("#search_word").val();
-    if (!search_word) {
-        alert("検索ワードを入力してください。");
-        return;
-    }
-    else {
-        document.getElementById('input-group-button-right').hidden = true;
-        document.getElementById('loading_button').hidden = false;
-        await eel.fetch_data(search_word = search_word);
-        // if (result) {
-        //     document.getElementById('input-group-button-right').hidden = false;
-        //     document.getElementById('loading_button').hidden = true;
-        // }
-        // document.getElementById('input-group-button-right').hidden = false;
-        // document.getElementById('loading_button').hidden = true;
-    }
+$(function() {
+    $("#input-group-button-right").on("click", async () => {
+        let search_word = $("#search_word").val();
+        if (!search_word) {
+            alert("検索ワードを入力してください。");
+            return;
+        }
+        else {
+            $("#input-group-button-right").hide();
+            $("#loading_button").show();
+            await eel.fetch_data(search_word = search_word).then(() => {
+                console.log("完了");
+            })
+        }
+    });
+});
+
+eel.expose(enable_btn)
+function enable_btn() {
+    $("#input-group-button-right").show();
+    $("#loading_button").hide();
 }
 
 eel.expose(output_oder_list)

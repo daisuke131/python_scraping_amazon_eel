@@ -11,6 +11,7 @@ size = (600, 700)
 @eel.expose
 def fetch_data(ranking_url: str) -> None:
     scraping(ranking_url=ranking_url)
+    eel.enable_btn()
 
 
 if __name__ == "__main__":
